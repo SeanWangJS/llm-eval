@@ -27,7 +27,7 @@ def preprocess(text):
     text = text.replace("  ", " ")
     return text
 
-def hellaswag_eval(model: AutoModelForCausalLM, tokenizer: AutoTokenizer, docs: List[Dict[str, str]]):
+def hellaswag_eval(model: AutoModelForCausalLM, tokenizer: AutoTokenizer, samples: List[Dict[str, str]]):
 
     if model.config.architectures[0].startswith("Gemma"):
         add_special_tokens = True
@@ -35,12 +35,12 @@ def hellaswag_eval(model: AutoModelForCausalLM, tokenizer: AutoTokenizer, docs: 
         add_special_tokens = False
 
     correct = 0
-    loop = tqdm(enumerate(docs), total=len(docs))
-    for i, doc in loop:
-        label = int(doc["label"])
-        ctx = doc["ctx_a"] + " " + doc["ctx_b"].capitalize()
-        context = preprocess(doc["activity_label"] + ": " + ctx)
-        choices = [preprocess(ending) for ending in doc["endings"]]
+    loop = tqdm(enumerate(samples), total=len(samples))
+    for i, sample in loop:
+        label = int(sample["label"])
+        ctx = sample["ctx_a"] + " " + sample["ctx_b"].capitalize()
+        context = preprocess(sample["activity_label"] + ": " + ctx)
+        choices = [preprocess(ending) for ending in sample["endings"]]
         lls = []
         for continuation in choices:
             context_enc, continuation_enc = encode_pair(tokenizer, context, target_delimiter + continuation, add_special_tokens)
@@ -72,27 +72,20 @@ def hellaswag_eval(model: AutoModelForCausalLM, tokenizer: AutoTokenizer, docs: 
         acc = correct / (i + 1)
         loop.set_description(f"Accuracy: {acc:.6f}")
     
-    print(f"Accuracy: {correct / len(docs)}")
+    print(f"Accuracy: {correct / len(samples)}")
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name_or_path", type=str, required=True, help="Path to the huggingface model")
-    parser.add_argument("--data_dir", type=str, required=False, help="Path to the Hellaswag dataset, if not provided, the dataset will be downloaded from Huggingface")
     args = parser.parse_args()
 
     model_name_or_path = args.model_name_or_path
-    data_dir = args.data_dir
 
     model = AutoModelForCausalLM.from_pretrained(model_name_or_path, device_map = "auto")
     tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
 
-    if data_dir:
-        val_data_path = os.path.join(data_dir, "hellaswag_val.jsonl")
-        with open(val_data_path, "r") as f:
-            docs = [json.loads(line) for line in f]
-    else:
-        dataset = load_dataset("hellaswag")
-        docs = dataset["validation"]
+    dataset = load_dataset("hellaswag")
+    samples = dataset["validation"]
 
-    hellaswag_eval(model, tokenizer, docs)
+    hellaswag_eval(model, tokenizer, samples)
