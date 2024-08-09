@@ -37,7 +37,7 @@ def hellaswag_eval(model: AutoModelForCausalLM, tokenizer: AutoTokenizer, docs: 
     correct = 0
     loop = tqdm(enumerate(docs), total=len(docs))
     for i, doc in loop:
-        label = doc["label"]
+        label = int(doc["label"])
         ctx = doc["ctx_a"] + " " + doc["ctx_b"].capitalize()
         context = preprocess(doc["activity_label"] + ": " + ctx)
         choices = [preprocess(ending) for ending in doc["endings"]]
