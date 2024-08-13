@@ -14,7 +14,7 @@ def tok_encode(tokenizer: AutoTokenizer, string: str, add_special_tokens = False
     special_tokens_kwargs = {
         "add_special_tokens": add_special_tokens
     }
-    encoding = tokenizer.encode(string, **special_tokens_kwargs, return_tensors="pt")
+    encoding = tokenizer.encode(string, **special_tokens_kwargs, return_tensors="pt", truncation=True, max_length=1024)
     return encoding
 
 def encode_pair(tokenizer: AutoTokenizer, ctx: str, cont: str, add_special_tokens = False) -> Tuple[torch.Tensor, torch.Tensor]:

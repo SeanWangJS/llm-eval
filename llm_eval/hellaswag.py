@@ -39,16 +39,16 @@ def hellaswag_eval(model: AutoModelForCausalLM, tokenizer: AutoTokenizer, sample
     for i, sample in loop:
         label = int(sample["label"])
         ctx = sample["ctx_a"] + " " + sample["ctx_b"].capitalize()
-        context = preprocess(sample["activity_label"] + ": " + ctx)
+        ctx = preprocess(sample["activity_label"] + ": " + ctx)
         choices = [preprocess(ending) for ending in sample["endings"]]
         lls = []
-        for continuation in choices:
-            context_enc, continuation_enc = encode_pair(tokenizer, context, target_delimiter + continuation, add_special_tokens)
-            context_enc = context_enc.to("cuda")
-            continuation_enc = continuation_enc.to("cuda")
-            continuation_len = continuation_enc.size(1)
+        for cont in choices:
+            ctx_enc, cont_enc = encode_pair(tokenizer, ctx, target_delimiter + cont, add_special_tokens)
+            ctx_enc = ctx_enc.to("cuda")
+            cont_enc = cont_enc.to("cuda")
+            cont_len = cont_enc.size(1)
 
-            input_ids = torch.cat([context_enc, continuation_enc], dim=1)
+            input_ids = torch.cat([ctx_enc, cont_enc], dim=1)
             input_ids = input_ids[:, :-1]
 
             attention_mask = torch.ones_like(input_ids)
@@ -57,13 +57,13 @@ def hellaswag_eval(model: AutoModelForCausalLM, tokenizer: AutoTokenizer, sample
                 outputs = model(input_ids=input_ids, attention_mask=attention_mask)
 
             logits = outputs.logits ## [1, seq_len, vocab_size]
-            logits = logits[:, -continuation_len:, :]
+            logits = logits[:, -cont_len:, :]
             logits = F.log_softmax(logits, dim=-1)
 
-            logits = torch.gather(logits, 2, continuation_enc.unsqueeze(-1)) ## [1, seq_len, 1]
+            logits = torch.gather(logits, 2, cont_enc.unsqueeze(-1)) ## [1, seq_len, 1]
             
             ## We only record the normalized log likelihood
-            lls.append(logits.sum().item() / len(continuation))
+            lls.append(logits.sum().item() / len(cont))
 
         pred = np.argmax(lls)
         if pred == label:
